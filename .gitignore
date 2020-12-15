@@ -1,0 +1,5 @@
+# Object files
+*.out
+
+# Vim files
+*.swp
