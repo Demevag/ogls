@@ -6,6 +6,8 @@
 #include <memory>
 #include <vector>
 
+#include <glm/glm.hpp>
+
 namespace dmvg::engine {
 
 class Object
@@ -13,7 +15,7 @@ class Object
 public:
     virtual ~Object() = default;
 
-    virtual void draw() = 0;
+    virtual void draw(const glm::mat4 & mvp) = 0;
 };
 
 namespace fs = std::filesystem;
