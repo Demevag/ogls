@@ -2,6 +2,8 @@
 
 #include "Scene.hpp"
 
+#include "Engine.hpp"
+
 namespace dmvg::lab {
 
 static const std::vector<GLfloat> g_vertex_buffer_data = { 
@@ -89,7 +91,7 @@ class LabScene : public engine::Scene
 
 public:
     LabScene()
-        : super{ {glm::vec3(4,3,3), glm::vec3(0,0,0), glm::vec3(0,1,0)}, glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f) }
+        : super{ {glm::vec3(4,3,3), glm::vec3(0,0,0), glm::vec3(0,1,0)}, glm::perspective(glm::radians(engine::get_fov()), 4.0f / 3.0f, 0.1f, 100.0f) }
     {}
 
     util::error init() override
@@ -107,6 +109,7 @@ public:
 
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LESS);
+        glEnable(GL_CULL_FACE);
 
         glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
 

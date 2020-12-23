@@ -16,8 +16,7 @@ public:
     void go_to(glm::vec3 new_coords);
     void look_at(glm::vec3 new_target);
 
-    void move(glm::vec3 delta);
-    void turn_by(glm::vec3 delta);
+    void handle_inputs();
 
     const glm::vec3 & get_coords() { return m_coords; }
     const glm::vec3 & get_target() { return m_target; }
@@ -26,6 +25,9 @@ private:
     glm::vec3 m_coords;
     glm::vec3 m_target;
     glm::vec3 m_up_vector;
+
+    float m_horizontal_angle = 3.14f;
+    float m_vertical_angle = 0.0f;
 };
 
 } // namespace dmvg::engine

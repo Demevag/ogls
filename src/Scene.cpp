@@ -14,6 +14,8 @@ void Scene::redraw()
 {
     glm::mat4 model(1.0f); //Model is static for now. TODO: dynamic models
 
+    m_camera.handle_inputs();
+
     glm::mat4 view = glm::lookAt(
                                     m_camera.get_coords(),
                                     m_camera.get_target(),
