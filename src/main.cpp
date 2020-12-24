@@ -5,8 +5,8 @@
 
 #include <fstream>
 #include <iostream>
-#include <string>
 #include <sstream>
+#include <string>
 #include <vector>
 
 #include <GL/glew.h>
@@ -32,11 +32,10 @@ int main()
         return -1;
     }
 
-    do{
+    do {
         scene.redraw();
-        engine::flush_buffers(); 
-    } 
-    while(engine::is_screen_opened());
+        engine::flush_buffers();
+    } while (engine::is_screen_opened());
 
     glDeleteVertexArrays(1, &VertexArrayID);
 

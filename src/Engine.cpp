@@ -19,27 +19,33 @@ struct ControlsSettings
 GLFWwindow * window;
 static ControlsSettings controls_settings;
 
-util::error init_screen(unsigned int width, unsigned int height, std::string name)
+util::error init_screen(unsigned int width,
+                        unsigned int height,
+                        std::string name)
 {
-    if( !glfwInit() )
-    {
+    if (!glfwInit()) {
         return "GLFW init failed.";
     }
 
     glfwWindowHint(GLFW_SAMPLES, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // To make MacOS happy; should not be needed
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT,
+                   GL_TRUE); // To make MacOS happy; should not be needed
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    window = glfwCreateWindow( width, height, name.c_str(), nullptr /*monitor for fullscreen*/, nullptr /*monitor to share*/);
-    if(!window ){
-    	glfwTerminate();
+    window = glfwCreateWindow(width,
+                              height,
+                              name.c_str(),
+                              nullptr /*monitor for fullscreen*/,
+                              nullptr /*monitor to share*/);
+    if (!window) {
+        glfwTerminate();
         return "Cannot open window.";
     }
     glfwMakeContextCurrent(window);
 
-    glewExperimental=true;
+    glewExperimental = true;
     if (glewInit() != GLEW_OK) {
         return "Cannot initialize Glew.";
     }
@@ -77,38 +83,43 @@ std::pair<float, float> handle_mouse_input(float delta_time)
     int width, height;
     glfwGetWindowSize(window, &width, &height);
 
-    glfwSetCursorPos(window, width/2, height/2);
+    glfwSetCursorPos(window, width / 2, height / 2);
 
-    float horizontal_angle = controls_settings.mouse_speed * delta_time * float(width/2 - xpos );
-    float vertical_angle   = controls_settings.mouse_speed * delta_time * float( height/2 - ypos );
+    float horizontal_angle = controls_settings.mouse_speed * delta_time *
+                             float(width / 2 - xpos);
+    float vertical_angle = controls_settings.mouse_speed * delta_time *
+                           float(height / 2 - ypos);
 
     return {horizontal_angle, vertical_angle};
 }
 
 std::pair<MoveDirection, float> handle_keyboard_input(float delta_time)
 {
-    if (glfwGetKey( window, GLFW_KEY_UP ) == GLFW_PRESS){
-		return {MoveDirection::FORWARD, delta_time * controls_settings.move_speed};
-	}
-	// Move backward
-	if (glfwGetKey( window, GLFW_KEY_DOWN ) == GLFW_PRESS){
-		return {MoveDirection::BACK, delta_time * controls_settings.move_speed};
-	}
-	// Strafe right
-	if (glfwGetKey( window, GLFW_KEY_RIGHT ) == GLFW_PRESS){
-		return {MoveDirection::RIGHT, delta_time * controls_settings.move_speed};
-	}
-	// Strafe left
-	if (glfwGetKey( window, GLFW_KEY_LEFT ) == GLFW_PRESS){
-		return {MoveDirection::LEFT, delta_time * controls_settings.move_speed};
-	}
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+        return {MoveDirection::FORWARD,
+                delta_time * controls_settings.move_speed};
+    }
+    // Move backward
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+        return {MoveDirection::BACK, delta_time * controls_settings.move_speed};
+    }
+    // Strafe right
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+        return {MoveDirection::RIGHT,
+                delta_time * controls_settings.move_speed};
+    }
+    // Strafe left
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+        return {MoveDirection::LEFT, delta_time * controls_settings.move_speed};
+    }
 
     return {MoveDirection::NONE, 0.0};
 }
 
 bool is_screen_opened()
 {
-    return glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS && glfwWindowShouldClose(window) == 0;
+    return glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS &&
+           glfwWindowShouldClose(window) == 0;
 }
 
 void flush_buffers()

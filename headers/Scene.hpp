@@ -16,8 +16,7 @@ class Scene
 {
 public:
     Scene(Camera camera, glm::mat4 scene_projection)
-        : m_camera{camera},
-          m_scene_projection{scene_projection}
+        : m_camera{camera}, m_scene_projection{scene_projection}
     {}
     virtual ~Scene() = default;
 

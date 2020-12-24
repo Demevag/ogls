@@ -4,7 +4,8 @@
 
 namespace dmvg::engine {
 
-enum class MoveDirection {
+enum class MoveDirection
+{
     FORWARD,
     BACK,
     RIGHT,
@@ -12,7 +13,9 @@ enum class MoveDirection {
     NONE
 };
 
-util::error init_screen(unsigned int width, unsigned int height, std::string name);
+util::error init_screen(unsigned int width,
+                        unsigned int height,
+                        std::string name);
 
 void set_move_speed(float move_speed);
 void set_mouse_speed(float mouse_speed);

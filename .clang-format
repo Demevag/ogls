@@ -1,0 +1,39 @@
+﻿---
+BasedOnStyle: Mozilla
+AccessModifierOffset: '-4'
+AlignConsecutiveDeclarations: 'false'
+AlignEscapedNewlines: Left
+AlignOperands: 'true'
+AlignTrailingComments: 'true'
+AllowAllArgumentsOnNextLine: 'false'
+AllowAllConstructorInitializersOnNextLine: 'true'
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: 'false'
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakAfterReturnType: None
+BreakBeforeBraces: Mozilla
+BreakInheritanceList: AfterColon
+BreakConstructorInitializers: BeforeColon
+ConstructorInitializerAllOnOneLineOrOnePerLine: 'true'
+ConstructorInitializerIndentWidth: '4'
+ContinuationIndentWidth: '0'
+Cpp11BracedListStyle: 'true'
+DerivePointerAlignment: 'false'
+IncludeBlocks: Preserve
+IndentWidth: '4'
+KeepEmptyLinesAtTheStartOfBlocks: 'false'
+Language: Cpp
+PenaltyBreakAssignment: '200'
+PenaltyBreakBeforeFirstCallParameter: '300'
+PointerAlignment: Middle
+SortIncludes: 'true'
+SortUsingDeclarations: 'true'
+SpaceBeforeCtorInitializerColon: 'true'
+SpaceBeforeInheritanceColon: 'true'
+SpacesInAngles: 'false'
+SpacesInSquareBrackets: 'false'
+Standard: Auto
+TabWidth: '4'
+UseTab: Never
+
+...
