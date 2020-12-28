@@ -16,7 +16,7 @@ BreakInheritanceList: AfterColon
 BreakConstructorInitializers: BeforeColon
 ConstructorInitializerAllOnOneLineOrOnePerLine: 'true'
 ConstructorInitializerIndentWidth: '4'
-ContinuationIndentWidth: '0'
+ContinuationIndentWidth: '4'
 Cpp11BracedListStyle: 'true'
 DerivePointerAlignment: 'false'
 IncludeBlocks: Preserve

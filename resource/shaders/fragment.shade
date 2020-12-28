@@ -8,5 +8,6 @@ uniform sampler2D cube_texture;
 
 void main()
 {
-    color = texture(cube_texture, UV).rgb;
+    //color = texture(cube_texture, UV).rgb;
+    color = vec3(0,1,0);
 }

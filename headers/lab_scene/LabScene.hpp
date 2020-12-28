@@ -53,20 +53,21 @@ public:
 
     util::error init() override
     {
-        auto result = engine::load_model(g_vertex_buffer_data,
+        auto result = engine::load_model("resource/models/bender.obj",
                                          "resource/shaders/vertex.shade",
                                          "resource/shaders/fragment.shade");
+
         if (result.failed()) {
             return result.get_error();
         }
 
         auto cube_ptr = std::move(result.get_value());
-        if (auto err = cube_ptr
+        /*if (auto err = cube_ptr
                        ->bind_texture("resource/textures/uvtemplate.tga",
                                       g_uv_buffer_data,
                                       "cube_texture")) {
             return err;
-        }
+        }*/
         add_object(std::move(cube_ptr));
 
         glEnable(GL_DEPTH_TEST);

@@ -20,7 +20,7 @@ public:
     virtual ~Object() = default;
 
     virtual util::error bind_texture(fs::path texture,
-                                     vertexes uv_coords,
+                                     vertexes && uv_coords,
                                      std::string name) = 0;
 
     virtual void draw(const glm::mat4 & mvp) = 0;
