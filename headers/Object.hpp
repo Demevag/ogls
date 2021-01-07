@@ -19,10 +19,6 @@ class Object
 public:
     virtual ~Object() = default;
 
-    virtual util::error bind_texture(fs::path texture,
-                                     vertexes && uv_coords,
-                                     std::string name) = 0;
-
     virtual void draw(const glm::mat4 & mvp) = 0;
 };
 
@@ -31,7 +27,7 @@ const fs::path & model,
 const fs::path & vertex_shader,
 const fs::path & frag_shader);
 
-util::expected<std::unique_ptr<Object>> load_model(
+/*util::expected<std::unique_ptr<Object>> load_model(
 const vertexes & model,
 const fs::path & vertex_shader,
 const fs::path & frag_shader);
@@ -39,5 +35,5 @@ util::expected<std::unique_ptr<Object>> load_model(
 const vertexes & model,
 const vertexes & colors,
 const fs::path & vertex_shader,
-const fs::path & frag_shader);
+const fs::path & frag_shader);*/
 } // namespace dmvg::engine

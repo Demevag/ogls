@@ -1,375 +1,279 @@
-#include "Object.hpp"
-
 #define STB_IMAGE_IMPLEMENTATION
-#include "assimp/DefaultLogger.hpp"
-#include "assimp/Importer.hpp"
-#include "assimp/postprocess.h"
-#include "assimp/scene.h"
-#include "libs/stb_image.h"
 
+#include <GL/glew.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include "libs/stb_image.h"
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
+#include "Object.hpp"
+#include "Mesh.hpp"
+
+#include <string>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <iostream>
+#include <vector>
 
 namespace dmvg::engine {
 
-GLuint bind_vertexes_to_buffer(const vertexes & verts)
-{
-    GLuint buffer_id;
+unsigned int texture_from_file(const fs::path & path, const fs::path & directory, bool gamma = false);
 
-    glGenBuffers(1, &buffer_id);
-
-    glBindBuffer(GL_ARRAY_BUFFER, buffer_id);
-
-    glBufferData(GL_ARRAY_BUFFER,
-                 verts.size() * sizeof(GLfloat),
-                 verts.data(),
-                 GL_STATIC_DRAW);
-
-    return buffer_id;
-}
-
-void pass_buffer_to_shaders(std::size_t layout_num, GLuint buffer_id)
-{
-    glEnableVertexAttribArray(layout_num);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer_id);
-    glVertexAttribPointer(layout_num,
-                          3,        // Size
-                          GL_FLOAT, // Type
-                          GL_FALSE, // Normalized?
-                          0,        // Step
-                          (void *)0 // Buffer offset
-    );
-}
-
-void pass_texture_to_shaders(std::size_t layout_num,
-                             GLuint texture_id,
-                             GLuint uniform_texture_id,
-                             GLuint uv_buffer_id)
-{
-    // Bind our texture in Texture Unit 0
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture_id);
-    // Set our "myTextureSampler" sampler to use Texture Unit 0
-    glUniform1i(uniform_texture_id, 0);
-
-    glEnableVertexAttribArray(layout_num);
-    glBindBuffer(GL_ARRAY_BUFFER, uv_buffer_id);
-    glVertexAttribPointer(layout_num, // attribute. No particular reason for 1,
-                                      // but must match the layout in the
-                                      // shader.
-                          2,          // size : U+V => 2
-                          GL_FLOAT,   // type
-                          GL_FALSE,   // normalized?
-                          0,          // stride
-                          (void *)0   // array buffer offset
-    );
-}
-
-struct Mesh
-{
-    vertexes m_vertexes;
-    std::optional<vertexes> m_colors;
-    std::optional<vertexes> m_uv;
-    std::optional<vertexes> m_normals;
-};
-
-struct MeshInfo
-{
-    struct TextureInfo
-    {
-        GLuint m_uv_buffer_id;
-        GLuint m_texture_id;
-        GLuint m_uniform_texture_id;
-    };
-
-    size_t m_vertexes_num;
-    GLuint m_vertex_buffer_id;
-    std::optional<GLuint> m_colors_buffer_id;
-    std::optional<TextureInfo> m_texture;
-    std::optional<GLuint> m_normals_buffer_id;
-};
-
-void draw_mesh(const MeshInfo & mesh_info,
-               const glm::mat4 & mvp,
-               const GLuint & shader_program_id,
-               const GLuint & matrix_id)
-{
-    glUseProgram(shader_program_id);
-    glUniformMatrix4fv(matrix_id, 1, GL_FALSE, &mvp[0][0]);
-
-    pass_buffer_to_shaders(0, mesh_info.m_vertex_buffer_id);
-    if (mesh_info.m_texture) {
-        const auto & texture_info = *mesh_info.m_texture;
-        pass_texture_to_shaders(1,
-                                texture_info.m_texture_id,
-                                texture_info.m_uniform_texture_id,
-                                texture_info.m_uv_buffer_id);
-    }
-    if (mesh_info.m_colors_buffer_id) {
-        pass_buffer_to_shaders(1, *mesh_info.m_colors_buffer_id);
-    }
-
-    glDrawArrays(GL_TRIANGLES, 0, mesh_info.m_vertexes_num);
-
-    glDisableVertexAttribArray(0);
-    glDisableVertexAttribArray(1);
-}
-
-util::expected<MeshInfo::TextureInfo> bind_texture_to_mesh(
-    fs::path filename,
-    std::string name,
-    const vertexes & uv_coords,
-    GLuint shader_program_id)
-{
-    int width, height, format;
-    stbi_set_flip_vertically_on_load(1);
-    unsigned char * image = stbi_load(filename.c_str(),
-                                      &width,
-                                      &height,
-                                      &format,
-                                      STBI_rgb);
-
-    if (image == nullptr)
-        return {"Failed to load texture'" + filename.string() + "'"};
-
-    GLuint texture_id;
-    glGenTextures(1, &texture_id);
-
-    glBindTexture(GL_TEXTURE_2D, texture_id);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexImage2D(GL_TEXTURE_2D,
-                 0,
-                 GL_RGB,
-                 width,
-                 height,
-                 0,
-                 GL_RGB,
-                 GL_UNSIGNED_BYTE,
-                 image);
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    stbi_image_free(image);
-
-    GLuint uniform_texture_id = glGetUniformLocation(shader_program_id,
-                                                     name.c_str());
-
-    GLuint uv_buffer_id = bind_vertexes_to_buffer(uv_coords);
-    return {
-        MeshInfo::TextureInfo{uv_buffer_id, texture_id, uniform_texture_id}};
-}
-
-class SimpleObjectImpl : public Object
+class ObjectImpl : public Object 
 {
 public:
-    SimpleObjectImpl(Mesh && mesh,
-                     MeshInfo mesh_info,
-                     const GLuint & shader_program_id)
-        : m_mesh{mesh},
-          m_mesh_info{mesh_info},
-          m_shader_program_id{shader_program_id}
+    // constructor, expects a filepath to a 3D model.
+    ObjectImpl(const fs::path & path, GLuint shader_program_id, bool gamma = false) : m_shader_program_id{shader_program_id}, m_gamma_correction{gamma}
     {
-        m_matrix_id = glGetUniformLocation(m_shader_program_id, "mvp");
+        load_model(path);
     }
 
-    ~SimpleObjectImpl() { glDeleteProgram(m_shader_program_id); }
-
-    util::error bind_texture(fs::path filename,
-                             vertexes && uv_coords,
-                             std::string name) override
-    {
-        m_mesh.m_uv = std::move(uv_coords);
-
-        auto result = bind_texture_to_mesh(filename,
-                                           name,
-                                           *m_mesh.m_uv,
-                                           m_shader_program_id);
-        if (result.failed()) {
-            return {result.get_error()};
-        }
-        m_mesh_info.m_texture = result.get_value();
-
-        return std::nullopt;
-    }
-
+    // draws the model, and thus all its meshes
     void draw(const glm::mat4 & mvp) override
     {
-        draw_mesh(m_mesh_info, mvp, m_shader_program_id, m_matrix_id);
-    }
+        glUniformMatrix4fv(glGetUniformLocation(m_shader_program_id, "mvp"), 1, GL_FALSE, &mvp[0][0]);
 
-private:
-    Mesh m_mesh;
-    MeshInfo m_mesh_info;
-
-    GLuint m_shader_program_id;
-    GLuint m_matrix_id;
-};
-
-class ComplexObjectImpl : public Object
-{
-public:
-    ComplexObjectImpl(std::vector<Mesh> && meshes,
-                      std::vector<MeshInfo> && meshes_info,
-                      const GLuint & shader_program_id)
-        : m_meshes{std::move(meshes)},
-          m_meshes_info{std::move(meshes_info)},
-          m_shader_program_id{shader_program_id}
-    {
-        m_matrix_id = glGetUniformLocation(m_shader_program_id, "mvp");
-    }
-
-    ~ComplexObjectImpl() { glDeleteProgram(m_shader_program_id); }
-
-    util::error bind_texture(fs::path filename,
-                             vertexes && uv_coords,
-                             std::string name) override
-    {
-        return "Cannot bind texture to multimesh object";
-    }
-
-    void draw(const glm::mat4 & mvp) override
-    {
-        for (auto & mesh_info : m_meshes_info) {
-            draw_mesh(mesh_info, mvp, m_shader_program_id, m_matrix_id);
+        for(auto & mesh : m_meshes) {
+            mesh.draw(m_shader_program_id);
         }
     }
-
+    
 private:
-    std::vector<Mesh> m_meshes;
-    std::vector<MeshInfo> m_meshes_info;
+    // loads a model with supported ASSIMP extensions from file and stores the resulting meshes in the meshes vector.
+    void load_model(const fs::path & path)
+    {
+        // read file via ASSIMP
+        Assimp::Importer importer;
+        const aiScene* scene = importer.ReadFile(path.string(), aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+        // check for errors
+        if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) // if is Not Zero
+        {
+            std::cout << "ERROR::ASSIMP:: " << importer.GetErrorString() << std::endl;
+            return;
+        }
+        // retrieve the directory path of the filepath
+        m_directory = path.parent_path();
 
-    GLuint m_shader_program_id;
-    GLuint m_matrix_id;
-};
-
-util::expected<std::unique_ptr<Object>> load_model(
-    const fs::path & model_file,
-    const fs::path & vertex_shader,
-    const fs::path & frag_shader)
-{
-    auto result = util::load_shaders(vertex_shader, frag_shader);
-    if (result.failed()) {
-        return {result.get_error()};
+        // process ASSIMP's root node recursively
+        process_node(scene->mRootNode, scene);
     }
 
-    GLuint program_id = result.get_value();
+    // processes a node in a recursive fashion. Processes each individual mesh located at the node and repeats this process on its children nodes (if any).
+    void process_node(aiNode *node, const aiScene *scene)
+    {
+        // process each mesh located at the current node
+        for(unsigned int i = 0; i < node->mNumMeshes; i++)
+        {
+            // the node object only contains indices to index the actual objects in the scene. 
+            // the scene contains all the data, node is just to keep stuff organized (like relations between nodes).
+            aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
+            m_meshes.push_back(process_mesh(mesh, scene));
+        }
+        // after we've processed all of the meshes (if any) we then recursively process each of the children nodes
+        for(unsigned int i = 0; i < node->mNumChildren; i++)
+        {
+            process_node(node->mChildren[i], scene);
+        }
 
-    Assimp::DefaultLogger::create("logs", Assimp::Logger::VERBOSE);
-    Assimp::Importer importer;
-    const auto * scene = importer.ReadFile(model_file.string(),
-                                           aiProcess_JoinIdenticalVertices |
-                                               aiProcess_Triangulate |
-                                               aiProcess_FixInfacingNormals);
+    }
 
-    std::vector<Mesh> meshes;
-    std::vector<MeshInfo> meshes_info;
-    meshes.reserve(scene->mNumMeshes);
-    for (size_t mesh_num = 0; mesh_num < scene->mNumMeshes; mesh_num++) {
-        Mesh mesh;
-        auto * mesh_data = scene->mMeshes[mesh_num];
+    Mesh process_mesh(aiMesh *mesh, const aiScene *scene)
+    {
+        // data to fill
+        std::vector<Vertex> vertices;
+        std::vector<unsigned int> indices;
+        std::vector<Texture> textures;
 
-        for (size_t i = 0; i < mesh_data->mNumFaces; i++) {
-            const auto & face = mesh_data->mFaces[i];
+        // walk through each of the mesh's vertices
+        for(unsigned int i = 0; i < mesh->mNumVertices; i++)
+        {
+            Vertex vertex;
+            glm::vec3 vector; // we declare a placeholder vector since assimp uses its own vector class that doesn't directly convert to glm's vec3 class so we transfer the data to this placeholder glm::vec3 first.
+            // positions
+            vector.x = mesh->mVertices[i].x;
+            vector.y = mesh->mVertices[i].y;
+            vector.z = mesh->mVertices[i].z;
+            vertex.Position = vector;
+            // normals
+            if (mesh->HasNormals())
+            {
+                vector.x = mesh->mNormals[i].x;
+                vector.y = mesh->mNormals[i].y;
+                vector.z = mesh->mNormals[i].z;
+                vertex.Normal = vector;
+            }
+            // texture coordinates
+            if(mesh->mTextureCoords[0]) // does the mesh contain texture coordinates?
+            {
+                glm::vec2 vec;
+                // a vertex can contain up to 8 different texture coordinates. We thus make the assumption that we won't 
+                // use models where a vertex can have multiple texture coordinates so we always take the first set (0).
+                vec.x = mesh->mTextureCoords[0][i].x; 
+                vec.y = mesh->mTextureCoords[0][i].y;
+                vertex.TexCoords = vec;
+                // tangent
+                vector.x = mesh->mTangents[i].x;
+                vector.y = mesh->mTangents[i].y;
+                vector.z = mesh->mTangents[i].z;
+                vertex.Tangent = vector;
+                // bitangent
+                vector.x = mesh->mBitangents[i].x;
+                vector.y = mesh->mBitangents[i].y;
+                vector.z = mesh->mBitangents[i].z;
+                vertex.Bitangent = vector;
+            }
+            else
+                vertex.TexCoords = glm::vec2(0.0f, 0.0f);
 
-            for (size_t j = 0; j < face.mNumIndices; j++) {
-                if (mesh_data->mTextureCoords[0] != nullptr) {
-                    if (!mesh.m_uv) {
-                        mesh.m_uv = {};
-                    }
-                    auto uv_input = mesh_data
-                                        ->mTextureCoords[0][face.mIndices[j]];
-                    mesh.m_uv->insert(mesh.m_uv->end(),
-                                      &uv_input[0],
-                                      &uv_input[0] + 2);
-                } else if (mesh_data->mColors[0] != nullptr) {
-                    if (!mesh.m_colors) {
-                        mesh.m_colors = {};
-                    }
-                    auto color_input = mesh_data->mColors[0][face.mIndices[j]];
-                    mesh.m_colors->insert(mesh.m_colors->end(),
-                                          &color_input[0],
-                                          &color_input[0] + 3);
+            vertices.push_back(vertex);
+        }
+        // now wak through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
+        for(unsigned int i = 0; i < mesh->mNumFaces; i++)
+        {
+            aiFace face = mesh->mFaces[i];
+            // retrieve all indices of the face and store them in the indices vector
+            for(unsigned int j = 0; j < face.mNumIndices; j++)
+                indices.push_back(face.mIndices[j]);        
+        }
+        // process materials
+        aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];    
+        // we assume a convention for sampler names in the shaders. Each diffuse texture should be named
+        // as 'texture_diffuseN' where N is a sequential number ranging from 1 to MAX_SAMPLER_NUMBER. 
+        // Same applies to other texture as the following list summarizes:
+        // diffuse: texture_diffuseN
+        // specular: texture_specularN
+        // normal: texture_normalN
+
+        // 1. diffuse maps
+        std::vector<Texture> diffuseMaps = load_material_textures(material, aiTextureType_DIFFUSE, "texture_diffuse");
+        textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
+        // 2. specular maps
+        std::vector<Texture> specularMaps = load_material_textures(material, aiTextureType_SPECULAR, "texture_specular");
+        textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
+        // 3. normal maps
+        std::vector<Texture> normalMaps = load_material_textures(material, aiTextureType_HEIGHT, "texture_normal");
+        textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
+        // 4. height maps
+        std::vector<Texture> heightMaps = load_material_textures(material, aiTextureType_AMBIENT, "texture_height");
+        textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
+        
+        // return a mesh object created from the extracted mesh data
+        return Mesh(vertices, indices, textures);
+    }
+
+    // checks all material textures of a given type and loads the textures if they're not loaded yet.
+    // the required info is returned as a Texture struct.
+    std::vector<Texture> load_material_textures(aiMaterial *mat, aiTextureType type, std::string type_name)
+    {
+        std::vector<Texture> textures;
+        for(unsigned int i = 0; i < mat->GetTextureCount(type); i++)
+        {
+            aiString str;
+            mat->GetTexture(type, i, &str);
+
+            fs::path path{str.C_Str()};
+            // check if texture was loaded before and if so, continue to next iteration: skip loading a new texture
+            bool skip = false;
+            for(unsigned int j = 0; j < m_textures_loaded.size(); j++)
+            {
+                if(m_textures_loaded[j].path == path)
+                {
+                    textures.push_back(m_textures_loaded[j]);
+                    skip = true; // a texture with the same filepath has already been loaded, continue to next one. (optimization)
+                    break;
                 }
-
-                auto vert_input = mesh_data->mVertices[face.mIndices[j]];
-                mesh.m_vertexes.insert(mesh.m_vertexes.end(),
-                                       &vert_input[0],
-                                       &vert_input[0] + 3);
+            }
+            if(!skip)
+            {   // if texture hasn't been loaded already, load it
+                Texture texture;
+                texture.id = texture_from_file(path, m_directory);
+                texture.type = type_name;
+                texture.path = path;
+                textures.push_back(texture);
+                m_textures_loaded.push_back(texture);  // store it as texture loaded for entire model, to ensure we won't unnecesery load duplicate textures.
             }
         }
+        return textures;
+    }
+private:
+    // model data 
+    std::vector<Texture> m_textures_loaded;	// stores all the textures loaded so far, optimization to make sure textures aren't loaded more than once.
+    std::vector<Mesh>    m_meshes;
+    GLuint m_shader_program_id;
+    fs::path m_directory;
+    bool m_gamma_correction;
+};
 
-        MeshInfo mesh_info{
-            .m_vertexes_num = mesh.m_vertexes.size(),
-            .m_vertex_buffer_id = bind_vertexes_to_buffer(mesh.m_vertexes),
-        };
 
-        if (mesh.m_colors) {
-            mesh_info.m_colors_buffer_id = bind_vertexes_to_buffer(
-                *mesh.m_colors);
-        }
-        if (mesh.m_uv) {
-            MeshInfo::TextureInfo texture_info{
-                .m_uv_buffer_id = bind_vertexes_to_buffer(*mesh.m_uv)};
-            mesh_info.m_texture = texture_info;
-        }
-        meshes.push_back(std::move(mesh));
-        meshes_info.push_back(mesh_info);
+unsigned int texture_from_file(const fs::path & path, const fs::path & directory, bool gamma)
+{
+    fs::path filename = directory / path;
+
+    unsigned int texture_id;
+    glGenTextures(1, &texture_id);
+
+    int width, height, nr_components;
+    unsigned char *data = stbi_load(filename.c_str(), &width, &height, &nr_components, 0);
+    if (data)
+    {
+        GLenum format;
+        if (nr_components == 1)
+            format = GL_RED;
+        else if (nr_components == 3)
+            format = GL_RGB;
+        else if (nr_components == 4)
+            format = GL_RGBA;
+
+        glBindTexture(GL_TEXTURE_2D, texture_id);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+    else
+    {
+        std::cout << "Texture failed to load at path: " << path << std::endl;
     }
 
-    Assimp::DefaultLogger::kill();
-    return {std::make_unique<ComplexObjectImpl>(std::move(meshes),
-                                                std::move(meshes_info),
-                                                program_id)};
+    stbi_image_free(data);
+    
+    return texture_id;
 }
 
 util::expected<std::unique_ptr<Object>> load_model(
-    const vertexes & model,
-    const fs::path & vertex_shader,
-    const fs::path & frag_shader)
+const fs::path & model,
+const fs::path & vertex_shader,
+const fs::path & frag_shader)
 {
     auto result = util::load_shaders(vertex_shader, frag_shader);
     if (result.failed()) {
         return {result.get_error()};
     }
-    GLuint program_id = result.get_value();
 
-    Mesh mesh = {.m_vertexes = model};
+    GLuint shader_program_id = result.get_value();
 
-    MeshInfo mesh_info{.m_vertexes_num = mesh.m_vertexes.size(),
-                       .m_vertex_buffer_id = bind_vertexes_to_buffer(
-                           mesh.m_vertexes)};
+    return {std::make_unique<ObjectImpl>(model, shader_program_id)};
+}
 
-    return {std::make_unique<SimpleObjectImpl>(std::move(mesh),
-                                               std::move(mesh_info),
-                                               program_id)};
+/*util::expected<std::unique_ptr<Object>> load_model(
+const vertexes & model,
+const fs::path & vertex_shader,
+const fs::path & frag_shader)
+{
 }
 
 util::expected<std::unique_ptr<Object>> load_model(
-    const vertexes & model,
-    const vertexes & colors,
-    const fs::path & vertex_shader,
-    const fs::path & frag_shader)
+const vertexes & model,
+const vertexes & colors,
+const fs::path & vertex_shader,
+const fs::path & frag_shader)
 {
-    auto result = util::load_shaders(vertex_shader, frag_shader);
-    if (result.failed()) {
-        return {result.get_error()};
-    }
-    GLuint program_id = result.get_value();
+}*/
 
-    Mesh mesh = {.m_vertexes = model, .m_colors = colors};
-
-    MeshInfo mesh_info{.m_vertexes_num = mesh.m_vertexes.size(),
-                       .m_vertex_buffer_id = bind_vertexes_to_buffer(
-                           mesh.m_vertexes),
-                       .m_colors_buffer_id = bind_vertexes_to_buffer(
-                           *mesh.m_colors)};
-
-    return {std::make_unique<SimpleObjectImpl>(std::move(mesh),
-                                               std::move(mesh_info),
-                                               program_id)};
-}
-
-} // namespace dmvg::engine
+} //namespace dmvg::engine
