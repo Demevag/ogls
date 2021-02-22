@@ -3,6 +3,8 @@
 #include <GL/glew.h>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "Shader.hpp"
+
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -48,9 +50,8 @@ public:
     }
 
     // render the mesh
-    void draw(GLuint & shader_program_id) 
+    void draw(const Shader & shader, const glm::vec3 & view_pos) 
     {
-        glUseProgram(shader_program_id);
 
         // bind appropriate textures
         unsigned int diffuseNr  = 1;
@@ -73,7 +74,8 @@ public:
                 number = std::to_string(heightNr++); // transfer unsigned int to stream
 
             // now set the sampler to the correct texture unit
-            glUniform1i(glGetUniformLocation(shader_program_id, (name + number).c_str()), i);
+            shader.setInt(name+number, i);
+            shader.setVec3("viewPos", view_pos);
             // and finally bind the texture
             glBindTexture(GL_TEXTURE_2D, m_textures[i].id);
         }

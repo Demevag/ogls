@@ -1,3 +1,5 @@
+#include "Shader.hpp"
+
 #include "utils.hpp"
 
 #include <filesystem>
@@ -8,11 +10,11 @@
 
 #include <GL/glew.h>
 
-namespace dmvg::util {
+namespace dmvg::engine {
 
 namespace {
 
-error load_code(const std::filesystem::path & shader_file, std::ostream & sout)
+util::error load_code(const std::filesystem::path & shader_file, std::ostream & sout)
 {
     std::ifstream shader_stream(shader_file, std::ios::in);
     if (!shader_stream.is_open()) {
@@ -25,7 +27,7 @@ error load_code(const std::filesystem::path & shader_file, std::ostream & sout)
     return std::nullopt;
 }
 
-error compile(std::string code, const GLuint & shader_id)
+util::error compile(std::string code, const GLuint & shader_id)
 {
     const char * code_ptr = code.c_str();
     glShaderSource(shader_id, 1, &code_ptr, nullptr);
@@ -50,7 +52,7 @@ error compile(std::string code, const GLuint & shader_id)
 
 } // unnamed namespace
 
-expected<GLuint> load_shaders(const std::filesystem::path & vertex_file,
+util::expected<Shader> load_shaders(const std::filesystem::path & vertex_file,
                               const std::filesystem::path & fragment_file)
 {
     // Создаем шейдеры
@@ -104,4 +106,4 @@ expected<GLuint> load_shaders(const std::filesystem::path & vertex_file,
     return {program_id};
 }
 
-} // namespace dmvg::util
+} // namespace dmvg::engine

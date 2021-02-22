@@ -12,8 +12,6 @@ void Scene::add_object(std::shared_ptr<Object> obj)
 
 void Scene::redraw()
 {
-    glm::mat4 model(1.0f); // Model is static for now. TODO: dynamic models
-
     m_camera.handle_inputs();
 
     glm::mat4 view = glm::lookAt(m_camera.get_coords(),
@@ -21,9 +19,9 @@ void Scene::redraw()
                                  m_camera.get_up_vector());
 
     // As model matrix is constant now, mvp matrix will be same for all objects
-    glm::mat4 mvp = m_scene_projection * view * model;
+    glm::mat4 vp = m_scene_projection * view;
     for (const auto & obj : m_objects) {
-        obj->draw(mvp);
+        obj->draw(vp, m_camera.get_coords());
     }
 }
 

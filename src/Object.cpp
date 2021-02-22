@@ -9,6 +9,7 @@
 #include <assimp/postprocess.h>
 
 #include "Object.hpp"
+#include "Shader.hpp"
 #include "Mesh.hpp"
 
 #include <string>
@@ -26,19 +27,27 @@ class ObjectImpl : public Object
 {
 public:
     // constructor, expects a filepath to a 3D model.
-    ObjectImpl(const fs::path & path, GLuint shader_program_id, bool gamma = false) : m_shader_program_id{shader_program_id}, m_gamma_correction{gamma}
+    ObjectImpl(const fs::path & path, Shader shader, glm::mat4 model_pos = glm::mat4(1.0f), bool gamma = false) : m_shader{shader}, m_model_pos{model_pos}, m_gamma_correction{gamma}
     {
         load_model(path);
     }
 
     // draws the model, and thus all its meshes
-    void draw(const glm::mat4 & mvp) override
+    void draw(const glm::mat4 & vp, const glm::vec3 & view_pos) override
     {
-        glUniformMatrix4fv(glGetUniformLocation(m_shader_program_id, "mvp"), 1, GL_FALSE, &mvp[0][0]);
+        m_shader.use();
+
+        m_shader.setMat4("vp", vp);
+        m_shader.setMat4("model", m_model_pos);
 
         for(auto & mesh : m_meshes) {
-            mesh.draw(m_shader_program_id);
+            mesh.draw(m_shader, view_pos);
         }
+    }
+
+    void rotate(const glm::vec3 & axis, float angle) override
+    {
+       m_model_pos = glm::rotate(m_model_pos, angle, axis); 
     }
     
 private:
@@ -202,7 +211,9 @@ private:
     // model data 
     std::vector<Texture> m_textures_loaded;	// stores all the textures loaded so far, optimization to make sure textures aren't loaded more than once.
     std::vector<Mesh>    m_meshes;
-    GLuint m_shader_program_id;
+    Shader m_shader;
+    glm::mat4 m_model_pos;
+    glm::mat4 m_rotation;
     fs::path m_directory;
     bool m_gamma_correction;
 };
@@ -216,6 +227,7 @@ unsigned int texture_from_file(const fs::path & path, const fs::path & directory
     glGenTextures(1, &texture_id);
 
     int width, height, nr_components;
+    stbi_set_flip_vertically_on_load(true);
     unsigned char *data = stbi_load(filename.c_str(), &width, &height, &nr_components, 0);
     if (data)
     {
@@ -238,7 +250,7 @@ unsigned int texture_from_file(const fs::path & path, const fs::path & directory
     }
     else
     {
-        std::cout << "Texture failed to load at path: " << path << std::endl;
+        std::cout << "Texture failed to load at path: " << filename << std::endl;
     }
 
     stbi_image_free(data);
@@ -249,16 +261,17 @@ unsigned int texture_from_file(const fs::path & path, const fs::path & directory
 util::expected<std::unique_ptr<Object>> load_model(
 const fs::path & model,
 const fs::path & vertex_shader,
-const fs::path & frag_shader)
+const fs::path & frag_shader,
+glm::mat4 model_pos)
 {
-    auto result = util::load_shaders(vertex_shader, frag_shader);
+    auto result = load_shaders(vertex_shader, frag_shader);
     if (result.failed()) {
         return {result.get_error()};
     }
 
-    GLuint shader_program_id = result.get_value();
+    Shader shader = result.get_value();
 
-    return {std::make_unique<ObjectImpl>(model, shader_program_id)};
+    return {std::make_unique<ObjectImpl>(model, shader, model_pos)};
 }
 
 /*util::expected<std::unique_ptr<Object>> load_model(
@@ -267,6 +280,7 @@ const fs::path & vertex_shader,
 const fs::path & frag_shader)
 {
 }
+
 
 util::expected<std::unique_ptr<Object>> load_model(
 const vertexes & model,

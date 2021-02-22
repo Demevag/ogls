@@ -17,15 +17,15 @@ using namespace dmvg;
 
 int main()
 {
-    if (auto err = engine::init_screen(1024, 768, "Window name")) {
+    if (auto err = engine::init_screen(1920, 1080, "Window name")) {
         std::cerr << *err << std::endl;
         return -1;
     }
 
-    GLuint VertexArrayID;
+    /*GLuint VertexArrayID;
     glGenVertexArrays(1, &VertexArrayID);
     glBindVertexArray(VertexArrayID);
-
+*/
     lab::LabScene scene;
     if (auto err = scene.init()) {
         std::cerr << *err << std::endl;
@@ -37,7 +37,7 @@ int main()
         engine::flush_buffers();
     } while (engine::is_screen_opened());
 
-    glDeleteVertexArrays(1, &VertexArrayID);
+  //  glDeleteVertexArrays(1, &VertexArrayID);
 
     return 0;
 }

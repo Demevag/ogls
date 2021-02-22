@@ -37,7 +37,7 @@ util::error init_screen(unsigned int width,
     window = glfwCreateWindow(width,
                               height,
                               name.c_str(),
-                              nullptr /*monitor for fullscreen*/,
+                              glfwGetPrimaryMonitor() /*monitor for fullscreen*/,
                               nullptr /*monitor to share*/);
     if (!window) {
         glfwTerminate();
